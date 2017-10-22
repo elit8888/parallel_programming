@@ -38,7 +38,7 @@ int main(int argc, char * argv[])
     srand((unsigned)time(NULL));    // use time for seed
 
 #if DEBUG
-    printf("%d cpus, %lld iterations.\n", n_cpu, n_iter);
+    printf("%ld cpus, %lld iterations.\n", n_cpu, n_iter);
 
     // time_t start = time(NULL);   // the precision is only to sec
     struct timespec requestStart, requestEnd;
