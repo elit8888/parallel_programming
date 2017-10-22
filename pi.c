@@ -24,6 +24,7 @@ int main(int argc, char * argv[])
     n_iter = strtol(argv[2], NULL, 10);
     long thread_iter = n_iter / n_cpu;
     pthread_t *threads = (pthread_t *)malloc(n_cpu * sizeof(pthread_t));
+    srand((unsigned)time(NULL));    // use time for seed
 
 #if DEBUG
     printf("%d cpus, %d iterations.\n", n_cpu, n_iter);
@@ -32,8 +33,6 @@ int main(int argc, char * argv[])
     struct timespec requestStart, requestEnd;
     clock_gettime(CLOCK_REALTIME, &requestStart);
 #endif
-
-    srand((unsigned)time(NULL));    // use time for seed
 
     // start threading
     for (int i = 0; i < n_cpu; ++i)
@@ -49,8 +48,6 @@ int main(int argc, char * argv[])
     // join threads
     for (int i = 0; i < n_cpu; ++i)
         pthread_join(threads[i], NULL);
-
-    // print result
     double pi_estimate = 4.0 * toss_hit_count / n_iter;
 
 #if DEBUG
@@ -69,16 +66,17 @@ int main(int argc, char * argv[])
 void *thread_foo(void *param)
 {
     double x, y;
-    int n_hit = 0, n_max = RAND_MAX;
+    int n_hit = 0;
     long t_iter = (long)param;
-    unsigned int rand_state = rand(); // use rand_r because randa won't speed up
+    unsigned int rand_state = rand(); // use rand_r because rand won't speed up
 
     for (int i = 0; i != t_iter; ++i)
     {
-        x = (double)(rand_r(&rand_state)) / (n_max) * 2 - 1;
-        y = (double)(rand_r(&rand_state)) / (n_max) * 2 - 1;
+        x = (double)(rand_r(&rand_state)) / (RAND_MAX) * 2 - 1;
+        y = (double)(rand_r(&rand_state)) / (RAND_MAX) * 2 - 1;
         if ((x*x + y*y) <= 1)   ++n_hit;
     }
+
     pthread_mutex_lock(&mutex);
     toss_hit_count += n_hit;
     pthread_mutex_unlock(&mutex);
