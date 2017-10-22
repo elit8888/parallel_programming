@@ -1,15 +1,24 @@
+/*
+ * Simple Pi program
+ * Calculate pi value using Monte-Carlo method.
+ * It accepts two positional arguments: # of cpu, # of iterations.
+ * It assumes that one thread is used for each cpu.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
 #include <stdlib.h> // strtol
 #include <time.h>   // time seed
 
+typedef long long int llint;
 
-/* function for threads */
-void *thread_foo(void *param);
+/* Function for threads */
+void *thread_run(void *param);
 
-int toss_hit_count = 0;
+/* Global variables */
+llint toss_hit_count = 0;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 int main(int argc, char * argv[])
 {
@@ -19,15 +28,17 @@ int main(int argc, char * argv[])
         printf("Usage: %s <# of cpu> <# of iter>.\n", argv[0]);
         exit(1);
     }
-    int n_iter, n_cpu, rc;
+    int rc; // return code for pthread_create
+    long n_cpu;
+    llint n_iter, *thread_iter = (llint *)malloc(sizeof(llint));
     n_cpu = strtol(argv[1], NULL, 10);
-    n_iter = strtol(argv[2], NULL, 10);
-    long thread_iter = n_iter / n_cpu;
+    n_iter = strtoll(argv[2], NULL, 10);
+    *thread_iter = n_iter / n_cpu;
     pthread_t *threads = (pthread_t *)malloc(n_cpu * sizeof(pthread_t));
     srand((unsigned)time(NULL));    // use time for seed
 
 #if DEBUG
-    printf("%d cpus, %d iterations.\n", n_cpu, n_iter);
+    printf("%d cpus, %lld iterations.\n", n_cpu, n_iter);
 
     // time_t start = time(NULL);   // the precision is only to sec
     struct timespec requestStart, requestEnd;
@@ -37,7 +48,7 @@ int main(int argc, char * argv[])
     // start threading
     for (int i = 0; i < n_cpu; ++i)
     {
-        rc = pthread_create(&threads[i], NULL, thread_foo, (void *)thread_iter);
+        rc = pthread_create(&threads[i], NULL, thread_run, (void *)thread_iter);
         if (rc)
         {
             printf("ERROR thread create with return code %d.\n", rc);
@@ -48,7 +59,8 @@ int main(int argc, char * argv[])
     // join threads
     for (int i = 0; i < n_cpu; ++i)
         pthread_join(threads[i], NULL);
-    double pi_estimate = 4.0 * toss_hit_count / n_iter;
+
+    double pi_estimate = toss_hit_count * 4.0 / n_iter;
 
 #if DEBUG
     clock_gettime(CLOCK_REALTIME, &requestEnd);
@@ -59,23 +71,28 @@ int main(int argc, char * argv[])
     printf("%f\n", pi_estimate);
 #endif
 
+    free(threads);
+    free(thread_iter);
     return 0;
 }
 
 
-void *thread_foo(void *param)
+void *thread_run(void *param)
 {
     double x, y;
-    int n_hit = 0;
-    long t_iter = (long)param;
+    llint n_hit = 0, t_iter = *(llint *)param;
     unsigned int rand_state = rand(); // use rand_r because rand won't speed up
 
-    for (int i = 0; i != t_iter; ++i)
+    for (llint i = 0; i != t_iter; ++i)
     {
         x = (double)(rand_r(&rand_state)) / (RAND_MAX) * 2 - 1;
         y = (double)(rand_r(&rand_state)) / (RAND_MAX) * 2 - 1;
         if ((x*x + y*y) <= 1)   ++n_hit;
     }
+
+#if DEBUG
+    printf("%lld / %lld\n", n_hit, t_iter);
+#endif
 
     pthread_mutex_lock(&mutex);
     toss_hit_count += n_hit;
