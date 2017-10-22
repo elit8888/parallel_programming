@@ -4,13 +4,12 @@
 #include <stdlib.h> // strtol
 #include <time.h>   // time seed
 
-#define Rand(low,up) (double)(rand()) / (RAND_MAX) * (up - low) + low
 
 /* function for threads */
 void *thread_foo(void *param);
 
-int n_iter, n_cpu;
-int *result;
+int toss_hit_count = 0;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char * argv[])
 {
@@ -20,53 +19,49 @@ int main(int argc, char * argv[])
         printf("Usage: %s <# of cpu> <# of iter>.\n", argv[0]);
         exit(1);
     }
+    int n_iter, n_cpu, rc;
     n_cpu = strtol(argv[1], NULL, 10);
     n_iter = strtol(argv[2], NULL, 10);
+    long thread_iter = n_iter / n_cpu;
+    pthread_t *threads = (pthread_t *)malloc(n_cpu * sizeof(pthread_t));
+
 #if DEBUG
     printf("%d cpus, %d iterations.\n", n_cpu, n_iter);
-#endif
 
-    // set timer
-    // time_t start = time(NULL);
+    // time_t start = time(NULL);   // the precision is only to sec
     struct timespec requestStart, requestEnd;
     clock_gettime(CLOCK_REALTIME, &requestStart);
+#endif
 
-    // Start estimate pi
     srand((unsigned)time(NULL));    // use time for seed
 
     // start threading
-    int t = 0;
-    long thread_iter = n_iter / n_cpu;
-    double pi_estimate = 0;
-    pthread_attr_t attr;
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    pthread_t *threads = (pthread_t *)malloc(n_cpu * sizeof(pthread_t));
-    result = (int *)malloc(n_cpu * sizeof(int));
-
     for (int i = 0; i < n_cpu; ++i)
     {
-        t = pthread_create(&threads[i], NULL, thread_foo, (void *)i);
-        if (t)
+        rc = pthread_create(&threads[i], NULL, thread_foo, (void *)thread_iter);
+        if (rc)
         {
-            printf("ERROR thread create with return code %d.\n", t);
+            printf("ERROR thread create with return code %d.\n", rc);
+            exit(EXIT_FAILURE);
         }
     }
 
-    // collect result
-    void *status;
-    int total_cnt = 0;
+    // join threads
     for (int i = 0; i < n_cpu; ++i)
-    {
         pthread_join(threads[i], NULL);
-        total_cnt += result[i];
-    }
 
     // print result
-    pi_estimate = 4.0 * total_cnt / n_iter;
+    double pi_estimate = 4.0 * toss_hit_count / n_iter;
+
+#if DEBUG
     clock_gettime(CLOCK_REALTIME, &requestEnd);
     double accum = (requestEnd.tv_sec - requestStart.tv_sec)
         + (requestEnd.tv_nsec - requestStart.tv_nsec) / 1E9;
     printf("%f, time: %lf.\n", pi_estimate, accum);
+#else
+    printf("%f\n", pi_estimate);
+#endif
+
     return 0;
 }
 
@@ -75,7 +70,7 @@ void *thread_foo(void *param)
 {
     double x, y;
     int n_hit = 0, n_max = RAND_MAX;
-    int t_iter = n_iter / n_cpu;
+    long t_iter = (long)param;
     unsigned int rand_state = rand(); // use rand_r because randa won't speed up
 
     for (int i = 0; i != t_iter; ++i)
@@ -84,7 +79,9 @@ void *thread_foo(void *param)
         y = (double)(rand_r(&rand_state)) / (n_max) * 2 - 1;
         if ((x*x + y*y) <= 1)   ++n_hit;
     }
-    result[(int)param] = n_hit;
+    pthread_mutex_lock(&mutex);
+    toss_hit_count += n_hit;
+    pthread_mutex_unlock(&mutex);
 
     pthread_exit(NULL);
 }
