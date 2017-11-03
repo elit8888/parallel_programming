@@ -91,7 +91,7 @@ void *thread_run(void *param)
     }
 
 #if DEBUG
-    printf("%lld / %lld\n", n_hit, t_iter);
+    //printf("%lld / %lld\n", n_hit, t_iter);
 #endif
 
     pthread_mutex_lock(&mutex);

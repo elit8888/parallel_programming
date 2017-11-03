@@ -5,7 +5,7 @@ pi: pi.c
 	$(CXX) $(CXXFLAGS) pi.c -o pi
 
 debug: pi.c
-	$(CXX) $(CXXFLAGS) -D DEBUG pi.c -o pi
+	$(CXX) $(CXXFLAGS) -g -D DEBUG pi.c -o pi
 
 clean:
 	rm -f pi
