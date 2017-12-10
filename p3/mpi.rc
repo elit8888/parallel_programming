@@ -1,0 +1,1 @@
+alias mexec='mpiexec -n 4 -host host,slave1,slave2,slave3'
