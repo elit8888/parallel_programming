@@ -8,3 +8,4 @@ To run the program, go to one directory and use `make` to build the program.
 * p2: openmp
 * p3: mpi
 * p4: CUDA
+* p5: OpenCL
